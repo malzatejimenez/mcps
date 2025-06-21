@@ -1,0 +1,33 @@
+{
+  "name": "mcp-api-tester",
+  "version": "1.0.0",
+  "description": "MCP Server para probar endpoints de API como Postman",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "mcp",
+    "api",
+    "testing",
+    "postman",
+    "n8n"
+  ],
+  "author": "Tu Nombre",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  },
+  "bin": {
+    "mcp-api-tester": "./server.js"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
