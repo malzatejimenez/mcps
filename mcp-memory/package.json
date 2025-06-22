@@ -1,0 +1,31 @@
+{
+  "name": "memory-mcp-server",
+  "version": "0.1.0",
+  "description": "Memory MCP Server for persistent contextual information across chat sessions",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mcp",
+    "memory",
+    "context",
+    "persistence",
+    "sqlite"
+  ],
+  "author": "Tu Nombre",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.4.0",
+    "sqlite3": "^5.1.7"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "bin": {
+    "memory-mcp-server": "./server.js"
+  }
+}

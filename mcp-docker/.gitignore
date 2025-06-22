@@ -2,14 +2,9 @@
 node_modules/
 npm-debug.log*
 
-# PostgreSQL specific
-*.dump
-*.sql.backup
-test.js
-
-# Database files
-*.db
-*.sqlite
+# Docker specific
+docker-compose.override.yml
+*.env.docker
 
 # Logs
 *.log

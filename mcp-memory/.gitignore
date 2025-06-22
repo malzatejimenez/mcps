@@ -2,14 +2,21 @@
 node_modules/
 npm-debug.log*
 
-# PostgreSQL specific
-*.dump
-*.sql.backup
-test.js
-
-# Database files
+# Memory-specific files
 *.db
 *.sqlite
+*.sqlite3
+memory.db
+memory-*.db
+
+# Backups
+*.backup
+*.bak
+
+# Test files
+test-*.db
+test.js
+test-*.js
 
 # Logs
 *.log
@@ -21,4 +28,4 @@ logs/
 
 # IDE files
 .vscode/
-.idea/
+.idea/ 

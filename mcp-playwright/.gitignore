@@ -1,0 +1,33 @@
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+
+# Playwright specific
+test-results/
+test-output/
+playwright-report/
+screenshots/
+videos/
+traces/
+
+# Browser downloads
+.local-browsers/
+
+# Test files (keep examples but ignore test runs)
+test-*.png
+test-*.jpg
+test-*.jpeg
+test-screenshot*.png
+test-video*.mp4
+
+# Logs
+*.log
+logs/
+
+# Environment variables
+.env
+.env.local
+
+# IDE files
+.vscode/
+.idea/ 
