@@ -1,0 +1,29 @@
+{
+  "name": "docker-mcp-server",
+  "version": "0.1.0",
+  "description": "Docker MCP Server for complete container management",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mcp",
+    "docker",
+    "containers",
+    "devops"
+  ],
+  "author": "Tu Nombre",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "bin": {
+    "docker-mcp-server": "./server.js"
+  }
+}
