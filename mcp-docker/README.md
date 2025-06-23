@@ -1,323 +1,208 @@
-# Docker MCP Server
+# Docker MCP Server - Optimizado
 
-Un servidor MCP (Model Context Protocol) completo para Docker que permite gestionar contenedores, imágenes, volúmenes y redes directamente desde Claude Desktop.
+Un servidor MCP (Model Context Protocol) optimizado que proporciona control completo de contenedores Docker con una interfaz simplificada de 12 herramientas esenciales.
 
-## 🚀 Características
-
-- **Gestión de contenedores**: Crear, iniciar, parar, eliminar y monitorear contenedores
-- **Gestión de imágenes**: Listar, descargar y eliminar imágenes Docker
-- **Gestión de volúmenes**: Crear, listar y gestionar volúmenes persistentes
-- **Gestión de redes**: Visualizar redes Docker disponibles
-- **Ejecución de comandos**: Ejecutar comandos dentro de contenedores en ejecución
-- **Logs y monitoreo**: Acceder a logs de contenedores
-- **Limpieza del sistema**: Limpiar recursos Docker no utilizados
-- **Integración segura**: Comandos seguros con validación de entrada
-
-## 📦 Instalación
-
-1. **Navegar al directorio del proyecto:**
-
-```bash
-cd mcp-docker
-```
-
-2. **Instalar dependencias:**
+## Instalación
 
 ```bash
 npm install
 ```
 
-3. **Verificar que Docker está instalado:**
+## Características
 
-```bash
-docker --version
-```
+- **Control completo de contenedores**: Crear, administrar, ver logs y ejecutar comandos
+- **Gestión de imágenes**: Listar, descargar y eliminar imágenes
+- **Administración de recursos**: Gestionar volúmenes y redes de forma unificada
+- **Información del sistema**: Obtener información completa del sistema Docker
+- **Limpieza automática**: Herramientas de limpieza con diferentes niveles
+- **Interfaz optimizada**: Solo 12 tools esenciales vs 16 originales
 
-## ⚙️ Configuración en Claude Desktop
+## Herramientas Disponibles
 
-Agrega esta configuración a tu archivo de configuración de Claude Desktop:
+### 🔧 Información del Sistema
 
-**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows:** `%APPDATA%/Claude/claude_desktop_config.json`
+- **`docker_system_info`**: Información completa del sistema Docker (versión + detalles del sistema)
+
+### 📦 Gestión de Contenedores
+
+- **`list_containers`**: Listar contenedores (ejecutándose o todos)
+- **`create_container`**: Crear y ejecutar nuevos contenedores
+- **`manage_container`**: Iniciar, detener o reiniciar contenedores
+- **`remove_container`**: Eliminar contenedores
+- **`container_logs`**: Obtener logs de contenedores
+- **`execute_in_container`**: Ejecutar comandos dentro de contenedores
+
+### 🖼️ Gestión de Imágenes
+
+- **`list_images`**: Listar imágenes disponibles
+- **`pull_image`**: Descargar imágenes desde registros
+- **`remove_image`**: Eliminar imágenes
+
+### 🔗 Gestión de Recursos
+
+- **`manage_resources`**: Gestión unificada de volúmenes y redes
+
+### 🧹 Limpieza
+
+- **`docker_prune`**: Eliminar objetos Docker no utilizados
+
+## Uso
+
+### Configuración en Cursor/Claude Desktop
+
+Añade esto a tu configuración MCP:
 
 ```json
 {
   "mcpServers": {
     "docker": {
       "command": "node",
-      "args": ["/ruta/completa/a/tu/mcp-docker/server.js"]
+      "args": ["path/to/mcp-docker/server.js"],
+      "env": {}
     }
   }
 }
 ```
 
-## 🔧 Herramientas Disponibles
+### Ejemplos de Uso
 
-### Información del Sistema
+#### Información del Sistema
 
-- **`docker_version`**: Obtener versión de Docker y información del cliente/servidor
-- **`docker_info`**: Mostrar información completa del sistema Docker
+```typescript
+// Obtener información completa del sistema
+await docker_system_info({ detailed: true });
 
-### Gestión de Contenedores
-
-- **`list_containers`**: Listar contenedores (activos o todos)
-- **`create_container`**: Crear y ejecutar un nuevo contenedor
-- **`start_container`**: Iniciar un contenedor detenido
-- **`stop_container`**: Detener un contenedor en ejecución
-- **`remove_container`**: Eliminar un contenedor
-- **`container_logs`**: Ver logs de un contenedor
-- **`execute_in_container`**: Ejecutar comandos dentro de un contenedor
-
-### Gestión de Imágenes
-
-- **`list_images`**: Listar todas las imágenes Docker
-- **`pull_image`**: Descargar una imagen desde un registro
-- **`remove_image`**: Eliminar una o más imágenes
-
-### Gestión de Volúmenes
-
-- **`list_volumes`**: Listar todos los volúmenes Docker
-- **`create_volume`**: Crear un nuevo volumen
-
-### Gestión de Redes
-
-- **`list_networks`**: Listar todas las redes Docker
-
-### Limpieza del Sistema
-
-- **`docker_prune`**: Limpiar recursos no utilizados (contenedores, imágenes, volúmenes, redes)
-
-## 📚 Ejemplos de Uso
-
-### 1. Verificar Docker
-
-```
-Muéstrame la versión de Docker instalada
+// Solo información básica
+await docker_system_info({ detailed: false });
 ```
 
-### 2. Crear un Contenedor Web
+#### Gestión de Contenedores
 
-```
-Crea un contenedor con nginx:
-- Imagen: nginx:latest
-- Nombre: mi-web-server
-- Puerto: 8080:80
-- En segundo plano: true
-```
+```typescript
+// Crear y ejecutar un contenedor web
+await create_container({
+  image: "nginx:latest",
+  name: "mi-web",
+  ports: ["8080:80"],
+  environment: ["ENV=production"],
+  detached: true,
+});
 
-### 3. Gestión de Contenedores
+// Gestionar contenedores
+await manage_container({
+  container: "mi-web",
+  action: "stop",
+  timeout: 10,
+});
 
-```
-Lista todos los contenedores (incluyendo los detenidos)
-```
+await manage_container({
+  container: "mi-web",
+  action: "start",
+});
 
-```
-Detén el contenedor 'mi-web-server'
-```
-
-```
-Muestra los logs del contenedor 'mi-web-server' (últimas 50 líneas)
-```
-
-### 4. Ejecutar Comandos en Contenedores
-
-```
-Ejecuta 'ls -la' en el contenedor 'mi-web-server'
-```
-
-```
-Ejecuta 'cat /etc/nginx/nginx.conf' en el contenedor nginx como usuario root
+await manage_container({
+  container: "mi-web",
+  action: "restart",
+});
 ```
 
-### 5. Gestión de Imágenes
+#### Gestión de Recursos
 
-```
-Descarga la imagen 'postgres:15'
-```
+```typescript
+// Listar volúmenes
+await manage_resources({
+  resource_type: "volumes",
+  action: "list",
+});
 
-```
-Lista todas las imágenes Docker disponibles
-```
+// Crear un nuevo volumen
+await manage_resources({
+  resource_type: "volumes",
+  action: "create",
+  name: "mi-volumen",
+});
 
-```
-Elimina la imagen 'nginx:latest' (forzar si es necesario)
-```
+// Listar redes
+await manage_resources({
+  resource_type: "networks",
+  action: "list",
+});
 
-### 6. Gestión de Volúmenes
-
-```
-Crea un volumen llamado 'datos-postgres'
-```
-
-```
-Lista todos los volúmenes Docker
-```
-
-### 7. Crear un Contenedor con Base de Datos
-
-```
-Crea un contenedor PostgreSQL:
-- Imagen: postgres:15
-- Nombre: mi-postgres
-- Puerto: 5432:5432
-- Variables de entorno: ["POSTGRES_PASSWORD=mipassword", "POSTGRES_DB=midb"]
-- Volumen: ["datos-postgres:/var/lib/postgresql/data"]
+// Crear una nueva red
+await manage_resources({
+  resource_type: "networks",
+  action: "create",
+  name: "mi-red",
+});
 ```
 
-### 8. Limpieza del Sistema
+#### Limpieza del Sistema
 
-```
-Limpia todos los recursos Docker no utilizados
-```
+```typescript
+// Limpieza completa del sistema
+await docker_prune({
+  type: "system",
+  force: true,
+});
 
-```
-Limpia solo las imágenes no utilizadas
-```
-
-## 🛡️ Características de Seguridad
-
-### Validación de Comandos
-
-- Todos los comandos Docker son validados antes de la ejecución
-- Timeouts configurables para prevenir comandos que se cuelguen
-- Manejo seguro de parámetros y argumentos
-
-### Gestión de Errores
-
-- Captura y reporte detallado de errores Docker
-- Mensajes informativos sin exponer información sensible
-- Fallback graceful en caso de fallos
-
-## 🔍 Solución de Problemas
-
-### Docker no está corriendo
-
-```
-Error: Cannot connect to the Docker daemon
+// Limpiar solo contenedores
+await docker_prune({
+  type: "container",
+  force: true,
+});
 ```
 
-**Solución:**
+## Optimizaciones Realizadas
 
-- En Windows: Inicia Docker Desktop
-- En Linux: `sudo systemctl start docker`
-- En macOS: Inicia Docker Desktop
+### Antes (16 tools) → Después (12 tools)
 
-### Permisos insuficientes
+#### ✅ Herramientas Combinadas:
 
-```
-Error: permission denied while trying to connect to Docker daemon
-```
+- `docker_version` + `docker_info` → **`docker_system_info`**
+- `start_container` + `stop_container` → **`manage_container`** (con restart)
+- `list_volumes` + `create_volume` + `list_networks` → **`manage_resources`**
 
-**Solución (Linux):**
+#### ✅ Herramientas Mantenidas:
+
+- `list_containers`, `create_container`, `remove_container`
+- `container_logs`, `execute_in_container`
+- `list_images`, `pull_image`, `remove_image`
+- `docker_prune`
+
+#### ✅ Beneficios:
+
+- **Interfaz más simple**: 25% menos herramientas
+- **Funcionalidad completa**: Sin pérdida de características
+- **Mejor organización**: Agrupación lógica de operaciones relacionadas
+- **Menos confusión**: Menos decisiones para el usuario
+
+## Requisitos
+
+- Node.js 14+
+- Docker instalado y ejecutándose
+- Permisos para ejecutar comandos Docker
+
+## Error Handling
+
+El servidor maneja errores comunes como:
+
+- Docker no instalado o no ejecutándose
+- Contenedores/imágenes no encontrados
+- Permisos insuficientes
+- Timeouts de conexión
+
+## Desarrollo
 
 ```bash
-sudo usermod -aG docker $USER
-# Reinicia la sesión o ejecuta:
-newgrp docker
+# Instalar dependencias
+npm install
+
+# Ejecutar el servidor
+node server.js
+
+# El servidor se ejecuta en modo stdio para MCP
 ```
 
-### Puerto ya en uso
+## Licencia
 
-```
-Error: port is already allocated
-```
-
-**Solución:** Usa un puerto diferente o detén el servicio que está usando el puerto
-
-### Imagen no encontrada
-
-```
-Error: Unable to find image
-```
-
-**Solución:** Verifica el nombre de la imagen o descárgala primero con `pull_image`
-
-## 🎯 Casos de Uso Avanzados
-
-### Desarrollo Web Local
-
-```
-# Crear un stack completo
-1. Crear volumen para datos: 'datos-web'
-2. Crear contenedor de base de datos: postgres:15
-3. Crear contenedor de aplicación: node:18
-4. Conectar contenedores con volúmenes compartidos
-```
-
-### Pruebas y CI/CD
-
-```
-# Ejecutar tests en contenedores
-1. Crear contenedor temporal para tests
-2. Ejecutar suite de tests
-3. Recopilar resultados
-4. Limpiar contenedores temporales
-```
-
-### Monitoreo y Logs
-
-```
-# Monitorear aplicaciones
-1. Ver logs en tiempo real de múltiples contenedores
-2. Ejecutar comandos de diagnóstico
-3. Verificar uso de recursos
-```
-
-## 📋 Requisitos del Sistema
-
-- **Docker**: ≥ 20.0.0
-- **Node.js**: ≥ 18.0.0
-- **Sistema Operativo**: Windows 10/11, macOS 10.15+, Linux (Ubuntu 18.04+)
-
-## 🚦 Estado de las Funcionalidades
-
-### ✅ Implementado
-
-- Gestión básica de contenedores
-- Gestión de imágenes
-- Gestión de volúmenes
-- Logs de contenedores
-- Ejecución de comandos
-- Limpieza del sistema
-
-### 🔄 Próximas Funcionalidades
-
-- Docker Compose integration
-- Construcción de imágenes (build)
-- Gestión avanzada de redes
-- Métricas y estadísticas en tiempo real
-- Backup y restauración de volúmenes
-
-## 🤝 Contribuir
-
-Para contribuir al proyecto:
-
-1. Fork el repositorio
-2. Crea una rama para tu feature (`git checkout -b feature/nueva-funcionalidad`)
-3. Commit tus cambios (`git commit -am 'Agregar nueva funcionalidad'`)
-4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
-5. Crea un Pull Request
-
-## 📄 Licencia
-
-Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
-
-## 🔗 Enlaces Útiles
-
-- [Documentación de Docker](https://docs.docker.com/)
-- [Docker Hub](https://hub.docker.com/)
-- [Model Context Protocol](https://modelcontextprotocol.io/)
-- [Claude Desktop](https://claude.ai/desktop)
-
-## 📞 Soporte
-
-Si encuentras algún problema o tienes preguntas:
-
-1. Verifica que Docker esté corriendo
-2. Revisa los logs de Claude Desktop
-3. Consulta la sección de solución de problemas
-4. Crea un issue con:
-   - Versión de Docker
-   - Sistema operativo
-   - Comando que falló
-   - Mensaje de error completo
+MIT

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * PostgreSQL MCP Server
- * Provides complete PostgreSQL database control through MCP protocol
+ * PostgreSQL MCP Server - Optimizado
+ * Provides streamlined PostgreSQL database control through MCP protocol
  */
 
 const { Server } = require('@modelcontextprotocol/sdk/server/index.js');
@@ -20,7 +20,7 @@ class PostgreSQLMCPServer {
     this.server = new Server(
       {
         name: 'postgresql-mcp-server',
-        version: '0.1.0',
+        version: '0.2.0',
       },
       {
         capabilities: {
@@ -137,107 +137,59 @@ class PostgreSQLMCPServer {
             },
           },
           {
-            name: 'insert_data',
-            description: 'Insert data into a table',
+            name: 'crud_operations',
+            description: 'Perform CRUD operations (Create, Read, Update, Delete) on table data',
             inputSchema: {
               type: 'object',
               properties: {
+                operation: {
+                  type: 'string',
+                  description: 'Type of CRUD operation to perform',
+                  enum: ['insert', 'update', 'delete'],
+                },
                 tableName: {
                   type: 'string',
                   description: 'Name of the table',
                 },
                 data: {
                   type: 'object',
-                  description: 'Data to insert as key-value pairs',
+                  description: 'Data for insert/update operations as key-value pairs',
+                },
+                where: {
+                  type: 'string',
+                  description: 'WHERE clause condition (required for update/delete)',
+                },
+                whereParams: {
+                  type: 'array',
+                  description: 'Parameters for WHERE clause',
+                  items: {
+                    type: ['string', 'number', 'boolean', 'null']
+                  },
+                  default: []
                 },
                 onConflict: {
                   type: 'string',
-                  description: 'ON CONFLICT clause (optional)',
+                  description: 'ON CONFLICT clause for insert operations (optional)',
                   default: ''
                 }
               },
-              required: ['tableName', 'data'],
+              required: ['operation', 'tableName'],
             },
           },
           {
-            name: 'update_data',
-            description: 'Update data in a table',
+            name: 'table_info',
+            description: 'Get information about tables - list all tables or describe a specific table structure',
             inputSchema: {
               type: 'object',
               properties: {
+                action: {
+                  type: 'string',
+                  description: 'Action to perform',
+                  enum: ['list', 'describe'],
+                },
                 tableName: {
                   type: 'string',
-                  description: 'Name of the table',
-                },
-                data: {
-                  type: 'object',
-                  description: 'Data to update as key-value pairs',
-                },
-                where: {
-                  type: 'string',
-                  description: 'WHERE clause condition',
-                },
-                whereParams: {
-                  type: 'array',
-                  description: 'Parameters for WHERE clause',
-                  items: {
-                    type: ['string', 'number', 'boolean', 'null']
-                  },
-                  default: []
-                }
-              },
-              required: ['tableName', 'data', 'where'],
-            },
-          },
-          {
-            name: 'delete_data',
-            description: 'Delete data from a table',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                tableName: {
-                  type: 'string',
-                  description: 'Name of the table',
-                },
-                where: {
-                  type: 'string',
-                  description: 'WHERE clause condition',
-                },
-                whereParams: {
-                  type: 'array',
-                  description: 'Parameters for WHERE clause',
-                  items: {
-                    type: ['string', 'number', 'boolean', 'null']
-                  },
-                  default: []
-                }
-              },
-              required: ['tableName', 'where'],
-            },
-          },
-          {
-            name: 'list_tables',
-            description: 'List all tables in the current database',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                schema: {
-                  type: 'string',
-                  description: 'Schema name (default: public)',
-                  default: 'public'
-                }
-              },
-            },
-          },
-          {
-            name: 'describe_table',
-            description: 'Get detailed information about a table structure',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                tableName: {
-                  type: 'string',
-                  description: 'Name of the table to describe',
+                  description: 'Name of the table to describe (required for describe action)',
                 },
                 schema: {
                   type: 'string',
@@ -245,7 +197,7 @@ class PostgreSQLMCPServer {
                   default: 'public'
                 }
               },
-              required: ['tableName'],
+              required: ['action'],
             },
           },
           {
@@ -274,7 +226,7 @@ class PostgreSQLMCPServer {
               type: 'object',
               properties: {},
             },
-          }
+          },
         ],
       };
     });
@@ -286,39 +238,26 @@ class PostgreSQLMCPServer {
         switch (name) {
           case 'connect_database':
             return await this.connectDatabase(args);
-          
           case 'disconnect_database':
             return await this.disconnectDatabase();
-          
           case 'execute_query':
-            return await this.executeQuery(args.query, args.params || []);
-          
+            return await this.executeQuery(args.query, args.params);
           case 'create_table':
             return await this.createTable(args.tableName, args.columns, args.options);
-          
-          case 'insert_data':
-            return await this.insertData(args.tableName, args.data, args.onConflict);
-          
-          case 'update_data':
-            return await this.updateData(args.tableName, args.data, args.where, args.whereParams);
-          
-          case 'delete_data':
-            return await this.deleteData(args.tableName, args.where, args.whereParams);
-          
-          case 'list_tables':
-            return await this.listTables(args.schema);
-          
-          case 'describe_table':
-            return await this.describeTable(args.tableName, args.schema);
-          
+          case 'crud_operations':
+            return await this.crudOperations(args);
+          case 'table_info':
+            return await this.tableInfo(args);
           case 'drop_table':
             return await this.dropTable(args.tableName, args.cascade);
-          
           case 'get_database_info':
             return await this.getDatabaseInfo();
-          
+
           default:
-            throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
+            throw new McpError(
+              ErrorCode.MethodNotFound,
+              `Unknown tool: ${name}`
+            );
         }
       } catch (error) {
         if (error instanceof McpError) {
@@ -332,10 +271,9 @@ class PostgreSQLMCPServer {
     });
   }
 
-  // Utility function to sanitize table/column names
   sanitizeIdentifier(identifier) {
-    // Only allow alphanumeric characters, underscores, and periods
-    if (!/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/.test(identifier)) {
+    // Basic validation for SQL identifiers
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(identifier)) {
       throw new Error(`Invalid identifier: ${identifier}`);
     }
     return identifier;
@@ -347,7 +285,7 @@ class PostgreSQLMCPServer {
         await this.pool.end();
       }
 
-      const poolConfig = {
+      this.pool = new Pool({
         host: config.host || 'localhost',
         port: config.port || 5432,
         database: config.database,
@@ -356,29 +294,25 @@ class PostgreSQLMCPServer {
         ssl: config.ssl || false,
         max: 10,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
-      };
-
-      this.pool = new Pool(poolConfig);
+        connectionTimeoutMillis: 5000,
+      });
 
       // Test the connection
       const client = await this.pool.connect();
-      const result = await client.query('SELECT version()');
+      const result = await client.query('SELECT NOW()');
       client.release();
 
       return {
         content: [
           {
             type: 'text',
-            text: `✅ Successfully connected to PostgreSQL database: ${config.database}\n` +
-                  `Server: ${config.host}:${config.port}\n` +
-                  `Version: ${result.rows[0].version}`,
+            text: `✅ Successfully connected to PostgreSQL database '${config.database}' at ${config.host}:${config.port}\nConnection established at: ${result.rows[0].now}`,
           },
         ],
       };
     } catch (error) {
       throw new McpError(
-        ErrorCode.InternalError,
+        ErrorCode.ConnectionFailed,
         `Failed to connect to database: ${error.message}`
       );
     }
@@ -389,11 +323,12 @@ class PostgreSQLMCPServer {
       if (this.pool) {
         await this.pool.end();
         this.pool = null;
+        
         return {
           content: [
             {
               type: 'text',
-              text: '✅ Successfully disconnected from database',
+              text: '✅ Successfully disconnected from PostgreSQL database',
             },
           ],
         };
@@ -402,7 +337,7 @@ class PostgreSQLMCPServer {
           content: [
             {
               type: 'text',
-              text: 'ℹ️ No active database connection',
+              text: '⚠️ No database connection to close',
             },
           ],
         };
@@ -418,8 +353,8 @@ class PostgreSQLMCPServer {
   checkConnection() {
     if (!this.pool) {
       throw new McpError(
-        ErrorCode.InvalidRequest,
-        'No database connection. Please connect to a database first.'
+        ErrorCode.ConnectionFailed,
+        'No database connection. Please connect first using connect_database.'
       );
     }
   }
@@ -428,15 +363,23 @@ class PostgreSQLMCPServer {
     this.checkConnection();
 
     try {
-      const result = await this.pool.query(query, params);
-      
+      const client = await this.pool.connect();
+      const result = await client.query(query, params);
+      client.release();
+
+      let output = `📊 Query executed successfully\n`;
+      output += `Rows affected: ${result.rowCount || 0}\n\n`;
+
+      if (result.rows && result.rows.length > 0) {
+        output += `📋 Results (${result.rows.length} rows):\n`;
+        output += JSON.stringify(result.rows, null, 2);
+      }
+
       return {
         content: [
           {
             type: 'text',
-            text: `✅ Query executed successfully\n` +
-                  `Rows affected: ${result.rowCount || 0}\n` +
-                  `${result.rows && result.rows.length > 0 ? `\nResults:\n${JSON.stringify(result.rows, null, 2)}` : ''}`,
+            text: output,
           },
         ],
       };
@@ -452,25 +395,27 @@ class PostgreSQLMCPServer {
     this.checkConnection();
 
     try {
-      // Sanitize table name
-      this.sanitizeIdentifier(tableName);
-
-      const columnDefs = columns.map(col => {
-        // Sanitize column name
-        this.sanitizeIdentifier(col.name);
-        return `${col.name} ${col.type} ${col.constraints || ''}`.trim();
+      const sanitizedTableName = this.sanitizeIdentifier(tableName);
+      
+      const columnDefinitions = columns.map(col => {
+        const sanitizedName = this.sanitizeIdentifier(col.name);
+        return `${sanitizedName} ${col.type} ${col.constraints || ''}`.trim();
       }).join(', ');
 
-      const query = `CREATE TABLE ${tableName} (${columnDefs})${options ? ' ' + options : ''}`;
-      
-      await this.pool.query(query);
-      
+      let query = `CREATE TABLE ${sanitizedTableName} (${columnDefinitions})`;
+      if (options) {
+        query += ` ${options}`;
+      }
+
+      const client = await this.pool.connect();
+      await client.query(query);
+      client.release();
+
       return {
         content: [
           {
             type: 'text',
-            text: `✅ Table '${tableName}' created successfully\n` +
-                  `Columns: ${columns.map(c => `${c.name} (${c.type})`).join(', ')}`,
+            text: `✅ Table '${tableName}' created successfully with ${columns.length} columns`,
           },
         ],
       };
@@ -482,201 +427,206 @@ class PostgreSQLMCPServer {
     }
   }
 
-  async insertData(tableName, data, onConflict = '') {
+  async crudOperations(args) {
     this.checkConnection();
 
-    try {
-      // Sanitize table name
-      this.sanitizeIdentifier(tableName);
+    const { operation, tableName, data, where, whereParams, onConflict } = args;
+    const sanitizedTableName = this.sanitizeIdentifier(tableName);
 
-      const keys = Object.keys(data);
-      const values = Object.values(data);
-      
-      // Sanitize column names
-      keys.forEach(key => this.sanitizeIdentifier(key));
-      
-      const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
-      
-      let query = `INSERT INTO ${tableName} (${keys.join(', ')}) VALUES (${placeholders})`;
-      if (onConflict) {
-        query += ` ${onConflict}`;
+    try {
+      const client = await this.pool.connect();
+      let result;
+      let message;
+
+      switch (operation) {
+        case 'insert':
+          if (!data || Object.keys(data).length === 0) {
+            throw new McpError(ErrorCode.InvalidParams, 'Data is required for insert operation');
+          }
+          
+          const insertColumns = Object.keys(data).map(key => this.sanitizeIdentifier(key));
+          const insertValues = Object.values(data);
+          const insertPlaceholders = insertValues.map((_, index) => `$${index + 1}`).join(', ');
+          
+          let insertQuery = `INSERT INTO ${sanitizedTableName} (${insertColumns.join(', ')}) VALUES (${insertPlaceholders})`;
+          if (onConflict) {
+            insertQuery += ` ${onConflict}`;
+          }
+          insertQuery += ' RETURNING *';
+          
+          result = await client.query(insertQuery, insertValues);
+          message = `✅ Successfully inserted ${result.rowCount} row(s) into '${tableName}'`;
+          break;
+
+        case 'update':
+          if (!data || Object.keys(data).length === 0) {
+            throw new McpError(ErrorCode.InvalidParams, 'Data is required for update operation');
+          }
+          if (!where) {
+            throw new McpError(ErrorCode.InvalidParams, 'WHERE clause is required for update operation');
+          }
+          
+          const updateColumns = Object.keys(data);
+          const updateValues = Object.values(data);
+          const updateSetClause = updateColumns.map((col, index) => 
+            `${this.sanitizeIdentifier(col)} = $${index + 1}`
+          ).join(', ');
+          
+          const updateQuery = `UPDATE ${sanitizedTableName} SET ${updateSetClause} WHERE ${where} RETURNING *`;
+          const updateParams = [...updateValues, ...whereParams];
+          
+          result = await client.query(updateQuery, updateParams);
+          message = `✅ Successfully updated ${result.rowCount} row(s) in '${tableName}'`;
+          break;
+
+        case 'delete':
+          if (!where) {
+            throw new McpError(ErrorCode.InvalidParams, 'WHERE clause is required for delete operation');
+          }
+          
+          const deleteQuery = `DELETE FROM ${sanitizedTableName} WHERE ${where} RETURNING *`;
+          result = await client.query(deleteQuery, whereParams);
+          message = `✅ Successfully deleted ${result.rowCount} row(s) from '${tableName}'`;
+          break;
+
+        default:
+          throw new McpError(ErrorCode.InvalidParams, `Invalid operation: ${operation}`);
       }
-      
-      const result = await this.pool.query(query, values);
-      
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `✅ Data inserted successfully into '${tableName}'\n` +
-                  `Rows affected: ${result.rowCount}\n` +
-                  `Data: ${JSON.stringify(data, null, 2)}`,
-          },
-        ],
-      };
-    } catch (error) {
-      throw new McpError(
-        ErrorCode.InternalError,
-        `Failed to insert data: ${error.message}`
-      );
-    }
-  }
 
-  async updateData(tableName, data, whereClause, whereParams = []) {
-    this.checkConnection();
+      client.release();
 
-    try {
-      // Sanitize table name
-      this.sanitizeIdentifier(tableName);
-
-      const keys = Object.keys(data);
-      const values = Object.values(data);
-      
-      // Sanitize column names
-      keys.forEach(key => this.sanitizeIdentifier(key));
-      
-      const setClause = keys.map((key, i) => `${key} = $${i + 1}`).join(', ');
-      const query = `UPDATE ${tableName} SET ${setClause} WHERE ${whereClause}`;
-      
-      const allParams = [...values, ...whereParams];
-      const result = await this.pool.query(query, allParams);
-      
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `✅ Data updated successfully in '${tableName}'\n` +
-                  `Rows affected: ${result.rowCount}\n` +
-                  `Updated data: ${JSON.stringify(data, null, 2)}`,
-          },
-        ],
-      };
-    } catch (error) {
-      throw new McpError(
-        ErrorCode.InternalError,
-        `Failed to update data: ${error.message}`
-      );
-    }
-  }
-
-  async deleteData(tableName, whereClause, whereParams = []) {
-    this.checkConnection();
-
-    try {
-      // Sanitize table name
-      this.sanitizeIdentifier(tableName);
-
-      const query = `DELETE FROM ${tableName} WHERE ${whereClause}`;
-      
-      const result = await this.pool.query(query, whereParams);
-      
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `✅ Data deleted successfully from '${tableName}'\n` +
-                  `Rows affected: ${result.rowCount}`,
-          },
-        ],
-      };
-    } catch (error) {
-      throw new McpError(
-        ErrorCode.InternalError,
-        `Failed to delete data: ${error.message}`
-      );
-    }
-  }
-
-  async listTables(schema = 'public') {
-    this.checkConnection();
-
-    try {
-      const query = `
-        SELECT table_name, table_type 
-        FROM information_schema.tables 
-        WHERE table_schema = $1 
-        ORDER BY table_name
-      `;
-      
-      const result = await this.pool.query(query, [schema]);
-      
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `📋 Tables in schema '${schema}':\n\n` +
-                  result.rows.map(row => `• ${row.table_name} (${row.table_type})`).join('\n') +
-                  `\n\nTotal: ${result.rows.length} tables`,
-          },
-        ],
-      };
-    } catch (error) {
-      throw new McpError(
-        ErrorCode.InternalError,
-        `Failed to list tables: ${error.message}`
-      );
-    }
-  }
-
-  async describeTable(tableName, schema = 'public') {
-    this.checkConnection();
-
-    try {
-      // Sanitize identifiers
-      this.sanitizeIdentifier(tableName);
-      this.sanitizeIdentifier(schema);
-
-      const query = `
-        SELECT 
-          column_name,
-          data_type,
-          is_nullable,
-          column_default,
-          character_maximum_length,
-          numeric_precision,
-          numeric_scale
-        FROM information_schema.columns 
-        WHERE table_schema = $1 AND table_name = $2
-        ORDER BY ordinal_position
-      `;
-      
-      const result = await this.pool.query(query, [schema, tableName]);
-      
-      if (result.rows.length === 0) {
-        throw new Error(`Table '${tableName}' not found in schema '${schema}'`);
+      let output = message + '\n\n';
+      if (result.rows && result.rows.length > 0) {
+        output += `📋 Affected rows:\n${JSON.stringify(result.rows, null, 2)}`;
       }
-      
-      const tableInfo = result.rows.map(row => {
-        let typeInfo = row.data_type;
-        if (row.character_maximum_length) {
-          typeInfo += `(${row.character_maximum_length})`;
-        } else if (row.numeric_precision) {
-          typeInfo += `(${row.numeric_precision}${row.numeric_scale ? ',' + row.numeric_scale : ''})`;
-        }
-        
-        return {
-          column: row.column_name,
-          type: typeInfo,
-          nullable: row.is_nullable === 'YES',
-          default: row.column_default
-        };
-      });
-      
+
       return {
         content: [
           {
             type: 'text',
-            text: `📋 Table structure: ${schema}.${tableName}\n\n` +
-                  tableInfo.map(col => 
-                    `• ${col.column} - ${col.type}${!col.nullable ? ' NOT NULL' : ''}${col.default ? ` DEFAULT ${col.default}` : ''}`
-                  ).join('\n'),
+            text: output,
           },
         ],
       };
     } catch (error) {
       throw new McpError(
         ErrorCode.InternalError,
-        `Failed to describe table: ${error.message}`
+        `CRUD operation failed: ${error.message}`
+      );
+    }
+  }
+
+  async tableInfo(args) {
+    this.checkConnection();
+
+    const { action, tableName, schema } = args;
+
+    try {
+      const client = await this.pool.connect();
+      let result;
+      let output;
+
+      switch (action) {
+        case 'list':
+          result = await client.query(`
+            SELECT 
+              schemaname as schema,
+              tablename as table_name,
+              tableowner as owner,
+              hasindexes as has_indexes,
+              hasrules as has_rules,
+              hastriggers as has_triggers
+            FROM pg_tables 
+            WHERE schemaname = $1
+            ORDER BY tablename
+          `, [schema || 'public']);
+
+          output = `📋 Tables in schema '${schema || 'public'}' (${result.rows.length} found):\n\n`;
+          if (result.rows.length > 0) {
+            result.rows.forEach((row, index) => {
+              output += `${index + 1}. ${row.table_name}\n`;
+              output += `   Owner: ${row.owner}\n`;
+              output += `   Features: ${[
+                row.has_indexes ? 'Indexes' : null,
+                row.has_rules ? 'Rules' : null,
+                row.has_triggers ? 'Triggers' : null
+              ].filter(Boolean).join(', ') || 'None'}\n\n`;
+            });
+          }
+          break;
+
+        case 'describe':
+          if (!tableName) {
+            throw new McpError(ErrorCode.InvalidParams, 'Table name is required for describe action');
+          }
+
+          result = await client.query(`
+            SELECT 
+              column_name,
+              data_type,
+              character_maximum_length,
+              is_nullable,
+              column_default,
+              ordinal_position
+            FROM information_schema.columns 
+            WHERE table_schema = $1 AND table_name = $2
+            ORDER BY ordinal_position
+          `, [schema || 'public', tableName]);
+
+          if (result.rows.length === 0) {
+            throw new McpError(ErrorCode.InvalidParams, `Table '${tableName}' not found in schema '${schema || 'public'}'`);
+          }
+
+          output = `📋 Table structure for '${tableName}':\n\n`;
+          output += `${'Column'.padEnd(25)} ${'Type'.padEnd(20)} ${'Nullable'.padEnd(10)} ${'Default'.padEnd(15)}\n`;
+          output += `${'-'.repeat(75)}\n`;
+
+          result.rows.forEach(row => {
+            const typeInfo = row.character_maximum_length 
+              ? `${row.data_type}(${row.character_maximum_length})`
+              : row.data_type;
+            
+            output += `${row.column_name.padEnd(25)} ${typeInfo.padEnd(20)} ${row.is_nullable.padEnd(10)} ${(row.column_default || 'NULL').padEnd(15)}\n`;
+          });
+
+          // Get table constraints
+          const constraintsResult = await client.query(`
+            SELECT 
+              constraint_name,
+              constraint_type
+            FROM information_schema.table_constraints 
+            WHERE table_schema = $1 AND table_name = $2
+          `, [schema || 'public', tableName]);
+
+          if (constraintsResult.rows.length > 0) {
+            output += `\n🔒 Constraints:\n`;
+            constraintsResult.rows.forEach(row => {
+              output += `- ${row.constraint_name} (${row.constraint_type})\n`;
+            });
+          }
+          break;
+
+        default:
+          throw new McpError(ErrorCode.InvalidParams, `Invalid action: ${action}`);
+      }
+
+      client.release();
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: output,
+          },
+        ],
+      };
+    } catch (error) {
+      if (error instanceof McpError) {
+        throw error;
+      }
+      throw new McpError(
+        ErrorCode.InternalError,
+        `Table info operation failed: ${error.message}`
       );
     }
   }
@@ -685,13 +635,13 @@ class PostgreSQLMCPServer {
     this.checkConnection();
 
     try {
-      // Sanitize table name
-      this.sanitizeIdentifier(tableName);
+      const sanitizedTableName = this.sanitizeIdentifier(tableName);
+      const cascadeClause = cascade ? ' CASCADE' : '';
+      
+      const client = await this.pool.connect();
+      await client.query(`DROP TABLE ${sanitizedTableName}${cascadeClause}`);
+      client.release();
 
-      const query = `DROP TABLE ${tableName}${cascade ? ' CASCADE' : ''}`;
-      
-      await this.pool.query(query);
-      
       return {
         content: [
           {
@@ -712,32 +662,36 @@ class PostgreSQLMCPServer {
     this.checkConnection();
 
     try {
-      const queries = {
-        version: 'SELECT version()',
-        database: 'SELECT current_database()',
-        user: 'SELECT current_user',
-        schema: 'SELECT current_schema()',
-        encoding: 'SELECT pg_encoding_to_char(encoding) FROM pg_database WHERE datname = current_database()',
-        size: `SELECT pg_size_pretty(pg_database_size(current_database())) as size`
-      };
-
-      const results = {};
-      for (const [key, query] of Object.entries(queries)) {
-        const result = await this.pool.query(query);
-        results[key] = result.rows[0];
-      }
+      const client = await this.pool.connect();
       
+      // Get basic database info
+      const dbInfo = await client.query('SELECT current_database(), current_user, version()');
+      const dbStats = await client.query(`
+        SELECT 
+          (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public') as table_count,
+          (SELECT count(*) FROM information_schema.views WHERE table_schema = 'public') as view_count,
+          (SELECT count(*) FROM information_schema.schemata) as schema_count
+      `);
+
+      client.release();
+
+      const info = dbInfo.rows[0];
+      const stats = dbStats.rows[0];
+
+      let output = `🗄️ Database Information:\n\n`;
+      output += `Database: ${info.current_database}\n`;
+      output += `Current User: ${info.current_user}\n`;
+      output += `PostgreSQL Version: ${info.version.split(' ').slice(0, 2).join(' ')}\n\n`;
+      output += `📊 Statistics:\n`;
+      output += `Tables (public schema): ${stats.table_count}\n`;
+      output += `Views (public schema): ${stats.view_count}\n`;
+      output += `Total Schemas: ${stats.schema_count}\n`;
+
       return {
         content: [
           {
             type: 'text',
-            text: `📊 Database Information:\n\n` +
-                  `• Database: ${results.database.current_database}\n` +
-                  `• User: ${results.user.current_user}\n` +
-                  `• Schema: ${results.schema.current_schema}\n` +
-                  `• Encoding: ${results.encoding.pg_encoding_to_char}\n` +
-                  `• Size: ${results.size.size}\n` +
-                  `• Version: ${results.version.version}`,
+            text: output,
           },
         ],
       };
@@ -752,7 +706,7 @@ class PostgreSQLMCPServer {
   async run() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error('PostgreSQL MCP server running on stdio');
+    console.error('PostgreSQL MCP Server (Optimized) running on stdio');
   }
 }
 

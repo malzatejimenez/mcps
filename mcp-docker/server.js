@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * Docker MCP Server
- * Provides complete Docker container management through MCP protocol
+ * Docker MCP Server - Optimizado
+ * Provides streamlined Docker container management through MCP protocol
  */
 
 const { Server } = require('@modelcontextprotocol/sdk/server/index.js');
@@ -23,7 +23,7 @@ class DockerMCPServer {
     this.server = new Server(
       {
         name: 'docker-mcp-server',
-        version: '0.1.0',
+        version: '0.2.0',
       },
       {
         capabilities: {
@@ -39,21 +39,19 @@ class DockerMCPServer {
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       return {
         tools: [
-          // Docker System Commands
+          // Docker System Information (Combined version + info)
           {
-            name: 'docker_version',
-            description: 'Get Docker version and system information',
+            name: 'docker_system_info',
+            description: 'Get comprehensive Docker system information including version and system details',
             inputSchema: {
               type: 'object',
-              properties: {},
-            },
-          },
-          {
-            name: 'docker_info',
-            description: 'Display system-wide Docker information',
-            inputSchema: {
-              type: 'object',
-              properties: {},
+              properties: {
+                detailed: {
+                  type: 'boolean',
+                  description: 'Include detailed system information',
+                  default: true
+                }
+              },
             },
           },
           
@@ -123,22 +121,8 @@ class DockerMCPServer {
             },
           },
           {
-            name: 'start_container',
-            description: 'Start a stopped container',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                container: {
-                  type: 'string',
-                  description: 'Container name or ID',
-                }
-              },
-              required: ['container'],
-            },
-          },
-          {
-            name: 'stop_container',
-            description: 'Stop a running container',
+            name: 'manage_container',
+            description: 'Start, stop, or restart a container',
             inputSchema: {
               type: 'object',
               properties: {
@@ -146,13 +130,18 @@ class DockerMCPServer {
                   type: 'string',
                   description: 'Container name or ID',
                 },
+                action: {
+                  type: 'string',
+                  description: 'Action to perform',
+                  enum: ['start', 'stop', 'restart'],
+                },
                 timeout: {
                   type: 'number',
-                  description: 'Seconds to wait before killing (default: 10)',
+                  description: 'Timeout in seconds for stop operation (default: 10)',
                   default: 10
                 }
               },
-              required: ['container'],
+              required: ['container', 'action'],
             },
           },
           {
@@ -270,37 +259,29 @@ class DockerMCPServer {
             },
           },
           
-          // Volume Management
+          // Resource Management (Volumes and Networks)
           {
-            name: 'list_volumes',
-            description: 'List Docker volumes',
-            inputSchema: {
-              type: 'object',
-              properties: {},
-            },
-          },
-          {
-            name: 'create_volume',
-            description: 'Create a volume',
+            name: 'manage_resources',
+            description: 'List or create Docker volumes and networks',
             inputSchema: {
               type: 'object',
               properties: {
+                resource_type: {
+                  type: 'string',
+                  description: 'Type of resource to manage',
+                  enum: ['volumes', 'networks'],
+                },
+                action: {
+                  type: 'string',
+                  description: 'Action to perform',
+                  enum: ['list', 'create'],
+                },
                 name: {
                   type: 'string',
-                  description: 'Volume name',
+                  description: 'Name for create operations (required for create)',
                 }
               },
-              required: ['name'],
-            },
-          },
-          
-          // Network Management
-          {
-            name: 'list_networks',
-            description: 'List Docker networks',
-            inputSchema: {
-              type: 'object',
-              properties: {},
+              required: ['resource_type', 'action'],
             },
           },
           
@@ -335,20 +316,16 @@ class DockerMCPServer {
       try {
         switch (name) {
           // System Commands
-          case 'docker_version':
-            return await this.dockerVersion();
-          case 'docker_info':
-            return await this.dockerInfo();
+          case 'docker_system_info':
+            return await this.dockerSystemInfo(args);
           
           // Container Management
           case 'list_containers':
             return await this.listContainers(args);
           case 'create_container':
             return await this.createContainer(args);
-          case 'start_container':
-            return await this.startContainer(args.container);
-          case 'stop_container':
-            return await this.stopContainer(args.container, args.timeout);
+          case 'manage_container':
+            return await this.manageContainer(args);
           case 'remove_container':
             return await this.removeContainer(args.container, args.force);
           case 'container_logs':
@@ -364,22 +341,19 @@ class DockerMCPServer {
           case 'remove_image':
             return await this.removeImage(args.image, args.force);
           
-          // Volume Management
-          case 'list_volumes':
-            return await this.listVolumes();
-          case 'create_volume':
-            return await this.createVolume(args.name);
-          
-          // Network Management
-          case 'list_networks':
-            return await this.listNetworks();
+          // Resource Management
+          case 'manage_resources':
+            return await this.manageResources(args);
           
           // Cleanup
           case 'docker_prune':
             return await this.dockerPrune(args);
-          
+
           default:
-            throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
+            throw new McpError(
+              ErrorCode.MethodNotFound,
+              `Unknown tool: ${name}`
+            );
         }
       } catch (error) {
         if (error instanceof McpError) {
@@ -393,7 +367,6 @@ class DockerMCPServer {
     });
   }
 
-  // Utility function to execute Docker commands
   async executeDockerCommand(command, options = {}) {
     try {
       const { stdout, stderr } = await execAsync(command, {
@@ -401,271 +374,216 @@ class DockerMCPServer {
         ...options
       });
       
-      if (stderr && !options.allowStderr) {
-        console.warn('Docker command stderr:', stderr);
-      }
-      
-      return stdout.trim();
+      return {
+        content: [
+          {
+            type: 'text',
+            text: stdout || stderr || 'Command executed successfully'
+          }
+        ]
+      };
     } catch (error) {
-      throw new Error(`Docker command failed: ${error.message}`);
+      throw new McpError(
+        ErrorCode.InternalError,
+        `Docker command failed: ${error.message}`
+      );
     }
   }
 
-  // System Commands
-  async dockerVersion() {
-    const output = await this.executeDockerCommand('docker version');
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `🐳 Docker Version Information:\n\n${output}`,
-        },
-      ],
-    };
+  async dockerSystemInfo(args = {}) {
+    try {
+      let output = '=== DOCKER SYSTEM INFORMATION ===\n\n';
+      
+      // Get version info
+      const { stdout: versionOut } = await execAsync('docker version --format json');
+      const versionInfo = JSON.parse(versionOut);
+      
+      output += '📋 VERSION INFORMATION:\n';
+      output += `Client Version: ${versionInfo.Client.Version}\n`;
+      output += `Server Version: ${versionInfo.Server.Version}\n`;
+      output += `API Version: ${versionInfo.Client.ApiVersion}\n\n`;
+      
+      if (args.detailed) {
+        // Get detailed system info
+        const { stdout: infoOut } = await execAsync('docker system df');
+        output += '💾 SYSTEM USAGE:\n';
+        output += infoOut + '\n';
+        
+        const { stdout: statusOut } = await execAsync('docker system info --format "{{.ContainersRunning}} running, {{.ContainersStopped}} stopped, {{.Images}} images"');
+        output += '📊 SYSTEM STATUS:\n';
+        output += statusOut + '\n';
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: output
+          }
+        ]
+      };
+    } catch (error) {
+      throw new McpError(
+        ErrorCode.InternalError,
+        `Failed to get Docker system info: ${error.message}`
+      );
+    }
   }
 
-  async dockerInfo() {
-    const output = await this.executeDockerCommand('docker info');
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `🐳 Docker System Information:\n\n${output}`,
-        },
-      ],
-    };
-  }
-
-  // Container Management
   async listContainers(args = {}) {
-    let command = 'docker ps';
-    if (args.all) command += ' -a';
-    if (args.format === 'json') command += ' --format "{{json .}}"';
-
-    const output = await this.executeDockerCommand(command);
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `📦 Docker Containers:\n\n${output}`,
-        },
-      ],
-    };
+    const allFlag = args.all ? '-a' : '';
+    const formatFlag = args.format === 'json' ? '--format "{{json .}}"' : '';
+    
+    return await this.executeDockerCommand(`docker ps ${allFlag} ${formatFlag}`);
   }
 
   async createContainer(args) {
-    let command = 'docker run';
+    const { image, name, ports, environment, volumes, detached, command } = args;
     
-    if (args.detached) command += ' -d';
-    if (args.name) command += ` --name ${args.name}`;
+    let dockerCommand = 'docker run';
+    
+    if (detached) dockerCommand += ' -d';
+    if (name) dockerCommand += ` --name ${name}`;
     
     // Add port mappings
-    args.ports?.forEach(port => {
-      command += ` -p ${port}`;
+    ports.forEach(port => {
+      dockerCommand += ` -p ${port}`;
     });
     
     // Add environment variables
-    args.environment?.forEach(env => {
-      command += ` -e "${env}"`;
+    environment.forEach(env => {
+      dockerCommand += ` -e "${env}"`;
     });
     
     // Add volume mounts
-    args.volumes?.forEach(volume => {
-      command += ` -v "${volume}"`;
+    volumes.forEach(volume => {
+      dockerCommand += ` -v ${volume}`;
     });
     
-    command += ` ${args.image}`;
+    dockerCommand += ` ${image}`;
     
-    if (args.command) {
-      command += ` ${args.command}`;
+    if (command) dockerCommand += ` ${command}`;
+    
+    return await this.executeDockerCommand(dockerCommand);
+  }
+
+  async manageContainer(args) {
+    const { container, action, timeout } = args;
+    
+    let command;
+    switch (action) {
+      case 'start':
+        command = `docker start ${container}`;
+        break;
+      case 'stop':
+        command = `docker stop --time ${timeout || 10} ${container}`;
+        break;
+      case 'restart':
+        command = `docker restart --time ${timeout || 10} ${container}`;
+        break;
+      default:
+        throw new McpError(ErrorCode.InvalidParams, `Invalid action: ${action}`);
     }
-
-    const output = await this.executeDockerCommand(command);
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `✅ Container created successfully:\n${output}`,
-        },
-      ],
-    };
-  }
-
-  async startContainer(container) {
-    const output = await this.executeDockerCommand(`docker start ${container}`);
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `✅ Container '${container}' started successfully:\n${output}`,
-        },
-      ],
-    };
-  }
-
-  async stopContainer(container, timeout = 10) {
-    const output = await this.executeDockerCommand(`docker stop -t ${timeout} ${container}`);
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `⏹️ Container '${container}' stopped successfully:\n${output}`,
-        },
-      ],
-    };
+    
+    return await this.executeDockerCommand(command);
   }
 
   async removeContainer(container, force = false) {
-    let command = `docker rm`;
-    if (force) command += ' -f';
-    command += ` ${container}`;
-
-    const output = await this.executeDockerCommand(command);
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `🗑️ Container '${container}' removed successfully:\n${output}`,
-        },
-      ],
-    };
+    const forceFlag = force ? '-f' : '';
+    return await this.executeDockerCommand(`docker rm ${forceFlag} ${container}`);
   }
 
   async containerLogs(args) {
+    const { container, tail, timestamps } = args;
+    
     let command = `docker logs`;
-    if (args.tail) command += ` --tail ${args.tail}`;
-    if (args.timestamps) command += ' -t';
-    command += ` ${args.container}`;
-
-    const output = await this.executeDockerCommand(command, { timeout: 30000 });
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `📋 Logs for container '${args.container}':\n\n${output}`,
-        },
-      ],
-    };
+    if (tail) command += ` --tail ${tail}`;
+    if (timestamps) command += ' --timestamps';
+    command += ` ${container}`;
+    
+    return await this.executeDockerCommand(command);
   }
 
   async executeInContainer(args) {
-    let command = `docker exec`;
-    if (args.user) command += ` -u ${args.user}`;
-    command += ` ${args.container} ${args.command}`;
-
-    const output = await this.executeDockerCommand(command, { allowStderr: true });
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `💻 Command execution result in '${args.container}':\n\n${output}`,
-        },
-      ],
-    };
+    const { container, command, user } = args;
+    
+    let dockerCommand = `docker exec`;
+    if (user) dockerCommand += ` --user ${user}`;
+    dockerCommand += ` ${container} ${command}`;
+    
+    return await this.executeDockerCommand(dockerCommand);
   }
 
-  // Image Management
   async listImages(args = {}) {
-    let command = 'docker images';
-    if (args.all) command += ' -a';
-
-    const output = await this.executeDockerCommand(command);
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `📋 Docker Images:\n\n${output}`,
-        },
-      ],
-    };
+    const allFlag = args.all ? '-a' : '';
+    return await this.executeDockerCommand(`docker images ${allFlag}`);
   }
 
   async pullImage(image) {
-    const output = await this.executeDockerCommand(`docker pull ${image}`, { timeout: 300000 }); // 5 minutes
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `⬇️ Image pull completed:\n\n${output}`,
-        },
-      ],
-    };
+    return await this.executeDockerCommand(`docker pull ${image}`);
   }
 
   async removeImage(image, force = false) {
-    let command = `docker rmi`;
-    if (force) command += ' -f';
-    command += ` ${image}`;
-
-    const output = await this.executeDockerCommand(command);
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `🗑️ Image '${image}' removed:\n\n${output}`,
-        },
-      ],
-    };
+    const forceFlag = force ? '-f' : '';
+    return await this.executeDockerCommand(`docker rmi ${forceFlag} ${image}`);
   }
 
-  // Volume Management
-  async listVolumes() {
-    const output = await this.executeDockerCommand('docker volume ls');
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `💾 Docker Volumes:\n\n${output}`,
-        },
-      ],
-    };
+  async manageResources(args) {
+    const { resource_type, action, name } = args;
+    
+    if (action === 'list') {
+      if (resource_type === 'volumes') {
+        return await this.executeDockerCommand('docker volume ls');
+      } else if (resource_type === 'networks') {
+        return await this.executeDockerCommand('docker network ls');
+      }
+    } else if (action === 'create') {
+      if (!name) {
+        throw new McpError(ErrorCode.InvalidParams, 'Name is required for create operations');
+      }
+      
+      if (resource_type === 'volumes') {
+        return await this.executeDockerCommand(`docker volume create ${name}`);
+      } else if (resource_type === 'networks') {
+        return await this.executeDockerCommand(`docker network create ${name}`);
+      }
+    }
+    
+    throw new McpError(ErrorCode.InvalidParams, `Invalid resource_type or action: ${resource_type}/${action}`);
   }
 
-  async createVolume(name) {
-    const output = await this.executeDockerCommand(`docker volume create ${name}`);
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `✅ Volume '${name}' created:\n${output}`,
-        },
-      ],
-    };
-  }
-
-  // Network Management
-  async listNetworks() {
-    const output = await this.executeDockerCommand('docker network ls');
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `🌐 Docker Networks:\n\n${output}`,
-        },
-      ],
-    };
-  }
-
-  // Cleanup Commands
   async dockerPrune(args = {}) {
-    let command = `docker ${args.type || 'system'} prune`;
-    if (args.force) command += ' -f';
-
-    const output = await this.executeDockerCommand(command);
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `🧹 Docker cleanup completed:\n\n${output}`,
-        },
-      ],
-    };
+    const { type, force } = args;
+    const forceFlag = force ? '-f' : '';
+    
+    let command;
+    switch (type) {
+      case 'system':
+        command = `docker system prune ${forceFlag}`;
+        break;
+      case 'container':
+        command = `docker container prune ${forceFlag}`;
+        break;
+      case 'image':
+        command = `docker image prune ${forceFlag}`;
+        break;
+      case 'volume':
+        command = `docker volume prune ${forceFlag}`;
+        break;
+      case 'network':
+        command = `docker network prune ${forceFlag}`;
+        break;
+      default:
+        command = `docker system prune ${forceFlag}`;
+    }
+    
+    return await this.executeDockerCommand(command);
   }
 
   async run() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error('Docker MCP server running on stdio');
+    console.error('Docker MCP Server (Optimized) running on stdio');
   }
 }
 

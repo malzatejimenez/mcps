@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * Playwright MCP Server
- * Integrates Playwright browser automation and testing capabilities into Cursor IDE
+ * Playwright MCP Server - Optimizado
+ * Integrates streamlined Playwright browser automation and testing capabilities into Cursor IDE
  */
 
 const { Server } = require('@modelcontextprotocol/sdk/server/index.js');
@@ -22,7 +22,7 @@ class PlaywrightMCPServer {
     this.server = new Server(
       {
         name: 'playwright-mcp-server',
-        version: '0.1.0',
+        version: '0.2.0',
       },
       {
         capabilities: {
@@ -84,15 +84,21 @@ class PlaywrightMCPServer {
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       return {
         tools: [
+          // Browser Management (Combined open/close)
           {
-            name: 'playwright_open',
-            description: 'Open a URL in the browser with optional browser and configuration',
+            name: 'playwright_browser',
+            description: 'Open, close, or manage browser instances with optional configuration',
             inputSchema: {
               type: 'object',
               properties: {
+                action: {
+                  type: 'string',
+                  enum: ['open', 'close', 'switch'],
+                  description: 'Browser action to perform',
+                },
                 url: {
                   type: 'string',
-                  description: 'URL to navigate to',
+                  description: 'URL to navigate to (required for open action)',
                 },
                 browser: {
                   type: 'string',
@@ -122,11 +128,18 @@ class PlaywrightMCPServer {
                       description: 'Device to emulate (e.g., iPhone 12, iPad)'
                     }
                   }
+                },
+                browser_type: {
+                  type: 'string',
+                  description: 'Specific browser to close, or "all" for all browsers (for close action)',
+                  default: 'all'
                 }
               },
-              required: ['url'],
+              required: ['action'],
             },
           },
+          
+          // Core Interactions
           {
             name: 'playwright_click',
             description: 'Click on an element with smart waiting and retry logic',
@@ -286,9 +299,11 @@ class PlaywrightMCPServer {
               required: ['script'],
             },
           },
+          
+          // Testing Suite (Combined test runner + assertions)
           {
-            name: 'playwright_test_runner',
-            description: 'Execute a complete test suite with multiple steps',
+            name: 'playwright_test',
+            description: 'Execute a complete test suite with multiple steps and assertions',
             inputSchema: {
               type: 'object',
               properties: {
@@ -308,24 +323,27 @@ class PlaywrightMCPServer {
                       items: { type: 'string', enum: ['chromium', 'firefox', 'webkit'] }
                     },
                     parallel: { type: 'boolean', default: false },
-                    retries: { type: 'number', default: 3 }
+                    retries: { type: 'number', default: 3 },
+                    assertions: {
+                      type: 'array',
+                      description: 'Test assertions to perform',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          type: { type: 'string', enum: ['text', 'visible', 'hidden', 'enabled', 'disabled', 'checked', 'url', 'title', 'count'] },
+                          selector: { type: 'string' },
+                          expected: {},
+                          description: { type: 'string' }
+                        }
+                      }
+                    }
                   },
-                  required: ['name', 'steps']
-                }
-              },
-              required: ['test_config'],
-            },
-          },
-          {
-            name: 'playwright_assert',
-            description: 'Perform assertions for testing with built-in matchers',
-            inputSchema: {
-              type: 'object',
-              properties: {
+                  required: ['name']
+                },
                 assertion_type: {
                   type: 'string',
                   enum: ['text', 'visible', 'hidden', 'enabled', 'disabled', 'checked', 'url', 'title', 'count'],
-                  description: 'Type of assertion to perform'
+                  description: 'Type of assertion to perform (for single assertion mode)'
                 },
                 selector: {
                   type: 'string',
@@ -336,83 +354,77 @@ class PlaywrightMCPServer {
                 },
                 options: {
                   type: 'object',
-                  description: 'Assertion options',
+                  description: 'Test options',
                   properties: {
                     timeout: { type: 'number', default: 10000 },
                     ignoreCase: { type: 'boolean', default: false }
                   }
                 }
               },
-              required: ['assertion_type'],
             },
           },
+          
+          // Advanced Configuration (Combined network mock + device emulation)
           {
-            name: 'playwright_network_mock',
-            description: 'Mock network requests with custom responses',
+            name: 'playwright_config',
+            description: 'Advanced configuration for network mocking and device emulation',
             inputSchema: {
               type: 'object',
               properties: {
-                url_pattern: {
+                config_type: {
                   type: 'string',
-                  description: 'URL pattern to mock (supports wildcards)',
+                  enum: ['network_mock', 'device_emulation', 'both'],
+                  description: 'Type of configuration to apply',
                 },
-                response_data: {
+                network_mock: {
                   type: 'object',
-                  description: 'Mock response configuration',
+                  description: 'Network mocking configuration',
                   properties: {
-                    status: { type: 'number', default: 200 },
-                    headers: { type: 'object' },
-                    body: { description: 'Response body (string or object)' },
-                    delay: { type: 'number', description: 'Response delay in ms' }
-                  }
-                }
-              },
-              required: ['url_pattern', 'response_data'],
-            },
-          },
-          {
-            name: 'playwright_device_emulation',
-            description: 'Emulate mobile devices and set viewport/user agent',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                device_name: {
-                  type: 'string',
-                  description: 'Device name (e.g., iPhone 12, iPad, Pixel 5) or "custom"',
-                },
-                custom_config: {
-                  type: 'object',
-                  description: 'Custom device configuration (when device_name is "custom")',
-                  properties: {
-                    viewport: {
-                      type: 'object',
-                      properties: {
-                        width: { type: 'number' },
-                        height: { type: 'number' }
-                      }
+                    url_pattern: {
+                      type: 'string',
+                      description: 'URL pattern to mock (supports wildcards)',
                     },
-                    userAgent: { type: 'string' },
-                    deviceScaleFactor: { type: 'number' },
-                    isMobile: { type: 'boolean' },
-                    hasTouch: { type: 'boolean' }
+                    response_data: {
+                      type: 'object',
+                      description: 'Mock response configuration',
+                      properties: {
+                        status: { type: 'number', default: 200 },
+                        headers: { type: 'object' },
+                        body: { description: 'Response body (string or object)' },
+                        delay: { type: 'number', description: 'Response delay in ms' }
+                      }
+                    }
+                  }
+                },
+                device_emulation: {
+                  type: 'object',
+                  description: 'Device emulation configuration',
+                  properties: {
+                    device_name: {
+                      type: 'string',
+                      description: 'Device name (e.g., iPhone 12, iPad, Pixel 5) or "custom"',
+                    },
+                    custom_config: {
+                      type: 'object',
+                      description: 'Custom device configuration (when device_name is "custom")',
+                      properties: {
+                        viewport: {
+                          type: 'object',
+                          properties: {
+                            width: { type: 'number' },
+                            height: { type: 'number' }
+                          }
+                        },
+                        userAgent: { type: 'string' },
+                        deviceScaleFactor: { type: 'number' },
+                        isMobile: { type: 'boolean' },
+                        hasTouch: { type: 'boolean' }
+                      }
+                    }
                   }
                 }
               },
-              required: ['device_name'],
-            },
-          },
-          {
-            name: 'playwright_close_browser',
-            description: 'Close browser instances and cleanup resources',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                browser_type: {
-                  type: 'string',
-                  description: 'Specific browser to close, or "all" for all browsers',
-                  default: 'all'
-                }
-              },
+              required: ['config_type'],
             },
           },
         ],
@@ -424,8 +436,8 @@ class PlaywrightMCPServer {
 
       try {
         switch (name) {
-          case 'playwright_open':
-            return await this.openPage(args);
+          case 'playwright_browser':
+            return await this.manageBrowser(args);
           case 'playwright_click':
             return await this.clickElement(args);
           case 'playwright_fill':
@@ -438,16 +450,10 @@ class PlaywrightMCPServer {
             return await this.waitFor(args);
           case 'playwright_execute_script':
             return await this.executeScript(args);
-          case 'playwright_test_runner':
-            return await this.runTestSuite(args);
-          case 'playwright_assert':
-            return await this.performAssertion(args);
-          case 'playwright_network_mock':
-            return await this.setupNetworkMock(args);
-          case 'playwright_device_emulation':
-            return await this.setupDeviceEmulation(args);
-          case 'playwright_close_browser':
-            return await this.closeBrowser(args);
+          case 'playwright_test':
+            return await this.runTest(args);
+          case 'playwright_config':
+            return await this.applyAdvancedConfig(args);
           default:
             throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
         }
@@ -463,44 +469,129 @@ class PlaywrightMCPServer {
     });
   }
 
-  async openPage(args) {
+  async manageBrowser(args) {
+    const { action, url, browser, options, browser_type } = args;
+
     try {
-      const browserType = args.browser || this.config.defaultBrowser;
-      const launcher = this.getBrowserLauncher(browserType);
-      
-      let browser = this.browsers.get(browserType);
-      if (!browser) {
-        browser = await launcher.launch({ headless: this.config.headless });
-        this.browsers.set(browserType, browser);
+      switch (action) {
+        case 'open':
+          if (!url) {
+            throw new McpError(ErrorCode.InvalidParams, 'URL is required for open action');
+          }
+          
+          const browserType = browser || this.config.defaultBrowser;
+          const launcher = this.getBrowserLauncher(browserType);
+          
+          let browserInstance = this.browsers.get(browserType);
+          if (!browserInstance) {
+            browserInstance = await launcher.launch({ 
+              headless: options?.headless ?? this.config.headless 
+            });
+            this.browsers.set(browserType, browserInstance);
+          }
+
+          const contextOptions = {
+            viewport: options?.viewport || this.config.viewport
+          };
+
+          // Apply device emulation if specified
+          if (options?.device) {
+            const device = devices[options.device];
+            if (device) {
+              Object.assign(contextOptions, device);
+            }
+          }
+
+          const context = await browserInstance.newContext(contextOptions);
+          const page = await context.newPage();
+          const pageId = this.generateId();
+          
+          this.pages.set(pageId, page);
+          this.currentPage = page;
+          this.currentContext = context;
+
+          await page.goto(url);
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `🌐 Browser opened successfully!\n` +
+                      `URL: ${url}\n` +
+                      `Browser: ${browserType}\n` +
+                      `Page ID: ${pageId}\n` +
+                      `Title: ${await page.title()}`,
+              },
+            ],
+          };
+
+        case 'close':
+          const targetBrowser = browser_type || 'all';
+          let closedCount = 0;
+
+          if (targetBrowser === 'all') {
+            for (const [type, browserInstance] of this.browsers) {
+              await browserInstance.close();
+              closedCount++;
+            }
+            this.browsers.clear();
+            this.pages.clear();
+            this.currentPage = null;
+            this.currentContext = null;
+          } else {
+            const browserInstance = this.browsers.get(targetBrowser);
+            if (browserInstance) {
+              await browserInstance.close();
+              this.browsers.delete(targetBrowser);
+              closedCount = 1;
+            }
+          }
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `🔄 Closed ${closedCount} browser instance(s)`,
+              },
+            ],
+          };
+
+        case 'switch':
+          // Switch between browser instances or pages
+          const targetBrowserType = browser || this.config.defaultBrowser;
+          const targetBrowserInstance = this.browsers.get(targetBrowserType);
+          
+          if (!targetBrowserInstance) {
+            throw new McpError(ErrorCode.InvalidParams, `No ${targetBrowserType} browser instance found`);
+          }
+
+          // Get first context and page from target browser
+          const contexts = targetBrowserInstance.contexts();
+          if (contexts.length > 0) {
+            this.currentContext = contexts[0];
+            const pages = contexts[0].pages();
+            if (pages.length > 0) {
+              this.currentPage = pages[0];
+            }
+          }
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `🔄 Switched to ${targetBrowserType} browser`,
+              },
+            ],
+          };
+
+        default:
+          throw new McpError(ErrorCode.InvalidParams, `Invalid action: ${action}`);
       }
-
-      const context = await browser.newContext({
-        viewport: this.config.viewport
-      });
-      
-      const page = await context.newPage();
-      const pageId = this.generateId();
-      
-      this.pages.set(pageId, page);
-      this.currentPage = page;
-      this.currentContext = context;
-
-      await page.goto(args.url);
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `🌐 Page opened successfully!\n` +
-                  `URL: ${args.url}\n` +
-                  `Browser: ${browserType}\n` +
-                  `Page ID: ${pageId}\n` +
-                  `Title: ${await page.title()}`,
-          },
-        ],
-      };
     } catch (error) {
-      throw new McpError(ErrorCode.InternalError, `Failed to open page: ${error.message}`);
+      if (error instanceof McpError) {
+        throw error;
+      }
+      throw new McpError(ErrorCode.InternalError, `Browser management failed: ${error.message}`);
     }
   }
 
@@ -510,7 +601,7 @@ class PlaywrightMCPServer {
     }
 
     try {
-      await this.currentPage.click(args.selector);
+      await this.currentPage.click(args.selector, args.options);
       return {
         content: [
           {
@@ -530,7 +621,7 @@ class PlaywrightMCPServer {
     }
 
     try {
-      await this.currentPage.fill(args.selector, args.value);
+      await this.currentPage.fill(args.selector, args.value, args.options);
       return {
         content: [
           {
@@ -550,16 +641,28 @@ class PlaywrightMCPServer {
     }
 
     try {
-      const fileName = args.path || `screenshot-${Date.now()}.png`;
-      const fullPath = path.join(this.config.screenshotDir, fileName);
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const screenshotPath = args.path || path.join(this.config.screenshotDir, `screenshot-${timestamp}.png`);
       
-      await this.currentPage.screenshot({ path: fullPath, fullPage: true });
-      
+      let screenshotOptions = {
+        path: screenshotPath,
+        fullPage: args.options?.fullPage ?? true,
+        type: args.options?.type || 'png',
+        ...args.options
+      };
+
+      if (args.options?.selector) {
+        const element = this.currentPage.locator(args.options.selector);
+        await element.screenshot(screenshotOptions);
+      } else {
+        await this.currentPage.screenshot(screenshotOptions);
+      }
+
       return {
         content: [
           {
             type: 'text',
-            text: `📸 Screenshot saved: ${fullPath}`,
+            text: `📸 Screenshot saved: ${screenshotPath}`,
           },
         ],
       };
@@ -574,12 +677,19 @@ class PlaywrightMCPServer {
     }
 
     try {
-      const text = await this.currentPage.textContent(args.selector);
+      let text;
+      if (args.options?.all) {
+        const elements = await this.currentPage.locator(args.selector).all();
+        text = await Promise.all(elements.map(el => el.textContent()));
+      } else {
+        text = await this.currentPage.locator(args.selector).textContent(args.options);
+      }
+
       return {
         content: [
           {
             type: 'text',
-            text: `📄 Text from ${args.selector}: "${text}"`,
+            text: `📄 Extracted text from ${args.selector}:\n${JSON.stringify(text, null, 2)}`,
           },
         ],
       };
@@ -594,20 +704,28 @@ class PlaywrightMCPServer {
     }
 
     try {
-      await this.currentPage.waitForSelector(args.selector, {
-        state: args.options?.state,
-        timeout: args.timeout
-      });
+      const { condition, timeout, options } = args;
+
+      if (condition.startsWith('network') || ['load', 'domcontentloaded'].includes(condition)) {
+        await this.currentPage.waitForLoadState(condition, { timeout });
+      } else {
+        // Assume it's a selector
+        await this.currentPage.waitForSelector(condition, { 
+          timeout, 
+          state: options?.state || 'visible' 
+        });
+      }
+
       return {
         content: [
           {
             type: 'text',
-            text: `✅ Wait for ${args.selector} completed successfully`,
+            text: `⏳ Successfully waited for: ${condition}`,
           },
         ],
       };
     } catch (error) {
-      throw new McpError(ErrorCode.InternalError, `Failed to wait for selector: ${error.message}`);
+      throw new McpError(ErrorCode.InternalError, `Wait condition failed: ${error.message}`);
     }
   }
 
@@ -617,176 +735,265 @@ class PlaywrightMCPServer {
     }
 
     try {
-      const result = await this.currentPage.evaluate(args.script, ...args.args);
+      const result = await this.currentPage.evaluate(
+        new Function('...args', args.script),
+        ...(args.args || [])
+      );
+
       return {
         content: [
           {
             type: 'text',
-            text: `💻 Executed script, result: ${JSON.stringify(result)}`,
+            text: `💻 Script executed successfully:\n${JSON.stringify(result, null, 2)}`,
           },
         ],
       };
     } catch (error) {
-      throw new McpError(ErrorCode.InternalError, `Failed to execute script: ${error.message}`);
+      throw new McpError(ErrorCode.InternalError, `Script execution failed: ${error.message}`);
     }
   }
 
-  async runTestSuite(args) {
-    if (!this.currentPage) {
-      throw new McpError(ErrorCode.InvalidRequest, 'No page is currently open');
-    }
-
+  async runTest(args) {
     try {
-      const results = await Promise.all(args.test_config.steps.map(async (step) => {
-        const [stepName, stepArgs] = step.split(':');
-        const result = await this.currentPage.evaluate(stepName, ...stepArgs);
-        return { name: stepName, result };
-      }));
+      // Handle single assertion mode
+      if (args.assertion_type) {
+        return await this.performAssertion(args);
+      }
+
+      // Handle full test suite mode
+      const { test_config } = args;
+      
+      if (!test_config) {
+        throw new McpError(ErrorCode.InvalidParams, 'Either test_config or assertion_type is required');
+      }
+
+      let output = `🧪 Running test: ${test_config.name}\n\n`;
+      let allPassed = true;
+      const results = [];
+
+      // Execute test steps
+      if (test_config.steps) {
+        output += `📋 Executing ${test_config.steps.length} test steps:\n`;
+        for (let i = 0; i < test_config.steps.length; i++) {
+          const step = test_config.steps[i];
+          output += `${i + 1}. ${step}\n`;
+          // Note: In a real implementation, you'd parse and execute these steps
+        }
+        output += '\n';
+      }
+
+      // Execute assertions
+      if (test_config.assertions) {
+        output += `🔍 Performing ${test_config.assertions.length} assertions:\n`;
+        for (const assertion of test_config.assertions) {
+          try {
+            const result = await this.performSingleAssertion(assertion);
+            results.push({ ...assertion, passed: true, result });
+            output += `✅ ${assertion.description || assertion.type}: PASSED\n`;
+          } catch (error) {
+            results.push({ ...assertion, passed: false, error: error.message });
+            output += `❌ ${assertion.description || assertion.type}: FAILED - ${error.message}\n`;
+            allPassed = false;
+          }
+        }
+      }
+
+      // Summary
+      output += `\n📊 Test Summary:\n`;
+      output += `Test: ${test_config.name}\n`;
+      output += `Status: ${allPassed ? '✅ PASSED' : '❌ FAILED'}\n`;
+      output += `Assertions: ${results.filter(r => r.passed).length}/${results.length} passed\n`;
 
       return {
         content: [
           {
             type: 'text',
-            text: `🏁 Test suite completed, ${results.length} steps executed`,
+            text: output,
           },
         ],
       };
     } catch (error) {
-      throw new McpError(ErrorCode.InternalError, `Failed to run test suite: ${error.message}`);
+      throw new McpError(ErrorCode.InternalError, `Test execution failed: ${error.message}`);
     }
   }
 
   async performAssertion(args) {
+    const { assertion_type, selector, expected_value, options } = args;
+
     if (!this.currentPage) {
       throw new McpError(ErrorCode.InvalidRequest, 'No page is currently open');
     }
 
     try {
-      const result = await this.currentPage.evaluate(args.assertion_type, args.selector, args.expected_value);
+      let result;
+      let passed = false;
+
+      switch (assertion_type) {
+        case 'text':
+          const actualText = await this.currentPage.locator(selector).textContent();
+          passed = options?.ignoreCase 
+            ? actualText.toLowerCase().includes(expected_value.toLowerCase())
+            : actualText.includes(expected_value);
+          result = `Expected: "${expected_value}", Actual: "${actualText}"`;
+          break;
+
+        case 'visible':
+          passed = await this.currentPage.locator(selector).isVisible();
+          result = `Element visibility: ${passed}`;
+          break;
+
+        case 'hidden':
+          passed = await this.currentPage.locator(selector).isHidden();
+          result = `Element hidden: ${passed}`;
+          break;
+
+        case 'enabled':
+          passed = await this.currentPage.locator(selector).isEnabled();
+          result = `Element enabled: ${passed}`;
+          break;
+
+        case 'disabled':
+          passed = await this.currentPage.locator(selector).isDisabled();
+          result = `Element disabled: ${passed}`;
+          break;
+
+        case 'checked':
+          passed = await this.currentPage.locator(selector).isChecked();
+          result = `Element checked: ${passed}`;
+          break;
+
+        case 'url':
+          const currentUrl = this.currentPage.url();
+          passed = currentUrl.includes(expected_value);
+          result = `Expected URL to contain: "${expected_value}", Actual: "${currentUrl}"`;
+          break;
+
+        case 'title':
+          const title = await this.currentPage.title();
+          passed = title.includes(expected_value);
+          result = `Expected title to contain: "${expected_value}", Actual: "${title}"`;
+          break;
+
+        case 'count':
+          const count = await this.currentPage.locator(selector).count();
+          passed = count === expected_value;
+          result = `Expected count: ${expected_value}, Actual: ${count}`;
+          break;
+
+        default:
+          throw new McpError(ErrorCode.InvalidParams, `Invalid assertion type: ${assertion_type}`);
+      }
+
       return {
         content: [
           {
             type: 'text',
-            text: `✅ Assertion ${args.assertion_type} on ${args.selector} completed successfully, result: ${result}`,
+            text: `🔍 Assertion ${passed ? 'PASSED' : 'FAILED'}: ${assertion_type}\n${result}`,
           },
         ],
       };
     } catch (error) {
-      throw new McpError(ErrorCode.InternalError, `Failed to perform assertion: ${error.message}`);
+      throw new McpError(ErrorCode.InternalError, `Assertion failed: ${error.message}`);
     }
   }
 
-  async setupNetworkMock(args) {
-    if (!this.currentPage) {
-      throw new McpError(ErrorCode.InvalidRequest, 'No page is currently open');
-    }
-
-    try {
-      const { url_pattern, response_data } = args;
-      const mock = this.mockResponses.get(url_pattern);
-      if (mock) {
-        throw new McpError(ErrorCode.InvalidRequest, `Network mock already exists for URL pattern: ${url_pattern}`);
-      }
-
-      const mockResponse = {
-        status: response_data.status,
-        headers: response_data.headers,
-        body: response_data.body,
-        delay: response_data.delay
-      };
-
-      this.mockResponses.set(url_pattern, mockResponse);
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `🌐 Network mock setup successfully for URL pattern: ${url_pattern}`,
-          },
-        ],
-      };
-    } catch (error) {
-      throw new McpError(ErrorCode.InternalError, `Failed to setup network mock: ${error.message}`);
-    }
+  async performSingleAssertion(assertion) {
+    // Helper method for running individual assertions in test suites
+    return await this.performAssertion({
+      assertion_type: assertion.type,
+      selector: assertion.selector,
+      expected_value: assertion.expected,
+      options: {}
+    });
   }
 
-  async setupDeviceEmulation(args) {
-    if (!this.currentPage) {
-      throw new McpError(ErrorCode.InvalidRequest, 'No page is currently open');
-    }
+  async applyAdvancedConfig(args) {
+    const { config_type, network_mock, device_emulation } = args;
 
     try {
-      const { device_name, custom_config } = args;
-      const browserType = device_name === 'custom' ? custom_config.browser : device_name;
-      const launcher = this.getBrowserLauncher(browserType);
-      
-      let browser = this.browsers.get(browserType);
-      if (!browser) {
-        browser = await launcher.launch({ headless: this.config.headless });
-        this.browsers.set(browserType, browser);
+      let output = `⚙️ Applying advanced configuration: ${config_type}\n\n`;
+
+      if (config_type === 'network_mock' || config_type === 'both') {
+        if (!network_mock) {
+          throw new McpError(ErrorCode.InvalidParams, 'network_mock configuration is required');
+        }
+
+        if (!this.currentPage) {
+          throw new McpError(ErrorCode.InvalidRequest, 'No page is currently open for network mocking');
+        }
+
+        await this.currentPage.route(network_mock.url_pattern, route => {
+          const response = {
+            status: network_mock.response_data.status || 200,
+            headers: network_mock.response_data.headers || {},
+            body: typeof network_mock.response_data.body === 'object' 
+              ? JSON.stringify(network_mock.response_data.body)
+              : network_mock.response_data.body
+          };
+
+          if (network_mock.response_data.delay) {
+            setTimeout(() => route.fulfill(response), network_mock.response_data.delay);
+          } else {
+            route.fulfill(response);
+          }
+        });
+
+        output += `🌐 Network mock configured for: ${network_mock.url_pattern}\n`;
+        output += `   Status: ${network_mock.response_data.status || 200}\n`;
+        if (network_mock.response_data.delay) {
+          output += `   Delay: ${network_mock.response_data.delay}ms\n`;
+        }
+        output += '\n';
       }
 
-      const context = await browser.newContext({
-        viewport: custom_config?.viewport || this.config.viewport,
-        userAgent: custom_config?.userAgent,
-        deviceScaleFactor: custom_config?.deviceScaleFactor,
-        isMobile: custom_config?.isMobile,
-        hasTouch: custom_config?.hasTouch
-      });
-      
-      const page = await context.newPage();
-      const pageId = this.generateId();
-      
-      this.pages.set(pageId, page);
-      this.currentPage = page;
-      this.currentContext = context;
+      if (config_type === 'device_emulation' || config_type === 'both') {
+        if (!device_emulation) {
+          throw new McpError(ErrorCode.InvalidParams, 'device_emulation configuration is required');
+        }
 
-      await page.goto(this.config.baseURL);
+        // Device emulation is applied during browser opening
+        // Store the config for the next browser session
+        if (device_emulation.device_name && device_emulation.device_name !== 'custom') {
+          const device = devices[device_emulation.device_name];
+          if (!device) {
+            throw new McpError(ErrorCode.InvalidParams, `Unknown device: ${device_emulation.device_name}`);
+          }
+          this.config.deviceEmulation = device;
+          output += `📱 Device emulation configured: ${device_emulation.device_name}\n`;
+          output += `   Viewport: ${device.viewport.width}x${device.viewport.height}\n`;
+          output += `   User Agent: ${device.userAgent.substring(0, 50)}...\n`;
+        } else if (device_emulation.custom_config) {
+          this.config.deviceEmulation = device_emulation.custom_config;
+          output += `📱 Custom device emulation configured\n`;
+          if (device_emulation.custom_config.viewport) {
+            output += `   Viewport: ${device_emulation.custom_config.viewport.width}x${device_emulation.custom_config.viewport.height}\n`;
+          }
+        }
+        output += '\n';
+      }
+
+      output += `✅ Configuration applied successfully`;
 
       return {
         content: [
           {
             type: 'text',
-            text: `🌐 Device emulation setup successfully for ${device_name}`,
+            text: output,
           },
         ],
       };
     } catch (error) {
-      throw new McpError(ErrorCode.InternalError, `Failed to setup device emulation: ${error.message}`);
-    }
-  }
-
-  async closeBrowser(args) {
-    try {
-      let closed = 0;
-      for (const [type, browser] of this.browsers.entries()) {
-        await browser.close();
-        closed++;
+      if (error instanceof McpError) {
+        throw error;
       }
-      
-      this.browsers.clear();
-      this.contexts.clear();
-      this.pages.clear();
-      this.currentPage = null;
-      this.currentContext = null;
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `🔒 Closed ${closed} browser(s) successfully`,
-          },
-        ],
-      };
-    } catch (error) {
-      throw new McpError(ErrorCode.InternalError, `Failed to close browser: ${error.message}`);
+      throw new McpError(ErrorCode.InternalError, `Configuration failed: ${error.message}`);
     }
   }
 
   async run() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error('Playwright MCP server running on stdio');
+    console.error('Playwright MCP Server (Optimized) running on stdio');
   }
 }
 

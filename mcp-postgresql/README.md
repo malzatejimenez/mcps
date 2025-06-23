@@ -1,262 +1,351 @@
-# PostgreSQL MCP Server
+# PostgreSQL MCP Server - Optimizado
 
-Un servidor MCP (Model Context Protocol) completo para PostgreSQL que permite control total sobre tu base de datos desde Claude Desktop.
+Un servidor MCP (Model Context Protocol) optimizado que proporciona control completo de bases de datos PostgreSQL con una interfaz simplificada de 8 herramientas esenciales.
 
-## 🚀 Características
-
-- **Conexión segura**: Conectar y desconectar de bases de datos PostgreSQL con pooling
-- **Gestión de esquemas**: Listar tablas, describir estructuras y eliminar tablas
-- **Manipulación de datos**: Insertar, actualizar, eliminar y consultar datos de forma segura
-- **Consultas SQL**: Ejecutar cualquier consulta SQL personalizada con parámetros
-- **Información del sistema**: Obtener información detallada de la base de datos
-- **Seguridad**: Sanitización de identificadores y consultas parametrizadas para prevenir SQL injection
-
-## 📦 Instalación
-
-1. **Navegar al directorio del proyecto:**
-
-```bash
-cd mcp-postgresql
-```
-
-2. **Instalar dependencias:**
+## Instalación
 
 ```bash
 npm install
 ```
 
-3. **Hacer el archivo ejecutable (Linux/macOS):**
+## Características
 
-```bash
-chmod +x server.js
-```
+- **Gestión de conexiones**: Conectar y desconectar de bases de datos PostgreSQL
+- **Ejecución de consultas**: Ejecutar cualquier consulta SQL con parámetros seguros
+- **Gestión de tablas**: Crear, listar, describir y eliminar tablas
+- **Operaciones CRUD unificadas**: Insertar, actualizar y eliminar datos con una sola herramienta
+- **Información de base de datos**: Obtener estadísticas y metadatos completos
+- **Interfaz optimizada**: Solo 8 tools esenciales vs 10 originales
 
-## ⚙️ Configuración en Claude Desktop
+## Herramientas Disponibles
 
-Agrega esta configuración a tu archivo de configuración de Claude Desktop:
+### 🔌 Gestión de Conexiones
 
-**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows:** `%APPDATA%/Claude/claude_desktop_config.json`
+- **`connect_database`**: Conectar a una base de datos PostgreSQL
+- **`disconnect_database`**: Desconectar de la base de datos actual
+
+### 🔍 Ejecución de Consultas
+
+- **`execute_query`**: Ejecutar consultas SQL con soporte para parámetros
+
+### 🗂️ Gestión de Tablas
+
+- **`create_table`**: Crear nuevas tablas con columnas y restricciones
+- **`table_info`**: Listar tablas o describir estructura de tabla específica
+- **`drop_table`**: Eliminar tablas con opción CASCADE
+
+### 📊 Operaciones de Datos
+
+- **`crud_operations`**: Operaciones unificadas de inserción, actualización y eliminación
+
+### ℹ️ Información del Sistema
+
+- **`get_database_info`**: Información completa de la base de datos
+
+## Uso
+
+### Configuración en Cursor/Claude Desktop
+
+Añade esto a tu configuración MCP:
 
 ```json
 {
   "mcpServers": {
     "postgresql": {
       "command": "node",
-      "args": ["/ruta/completa/a/tu/mcp-postgresql/server.js"]
+      "args": ["path/to/mcp-postgresql/server.js"],
+      "env": {}
     }
   }
 }
 ```
 
-## 🔧 Herramientas Disponibles
+### Ejemplos de Uso
 
-### Conexión y Gestión
+#### Conexión a Base de Datos
 
-- **`connect_database`**: Conectar a una base de datos PostgreSQL
-- **`disconnect_database`**: Desconectar de la base de datos
-- **`get_database_info`**: Obtener información general de la base de datos
+```typescript
+// Conectar a una base de datos local
+await connect_database({
+  host: "localhost",
+  port: 5432,
+  database: "mi_base_datos",
+  user: "usuario",
+  password: "password",
+  ssl: false,
+});
 
-### Gestión de Tablas
-
-- **`create_table`**: Crear una nueva tabla con columnas y restricciones
-- **`list_tables`**: Listar todas las tablas en un esquema
-- **`describe_table`**: Obtener estructura detallada de una tabla
-- **`drop_table`**: Eliminar una tabla (con opción CASCADE)
-
-### Manipulación de Datos
-
-- **`insert_data`**: Insertar datos en una tabla con manejo de conflictos
-- **`update_data`**: Actualizar datos existentes con condiciones WHERE
-- **`delete_data`**: Eliminar datos de una tabla con condiciones WHERE
-- **`execute_query`**: Ejecutar cualquier consulta SQL con parámetros seguros
-
-## 📚 Ejemplos de Uso
-
-### 1. Conectar a la Base de Datos
-
-```
-Por favor conecta a mi base de datos PostgreSQL:
-- Host: localhost
-- Puerto: 5432
-- Base de datos: mi_proyecto
-- Usuario: postgres
-- Contraseña: mi_password
+// Desconectar
+await disconnect_database();
 ```
 
-### 2. Crear una Tabla
+#### Operaciones CRUD Unificadas
 
-```
-Crea una tabla llamada "usuarios" con estas columnas:
-- id: SERIAL PRIMARY KEY
-- nombre: VARCHAR(100) NOT NULL
-- email: VARCHAR(255) UNIQUE NOT NULL
-- activo: BOOLEAN DEFAULT true
-- fecha_creacion: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-```
+```typescript
+// Insertar datos
+await crud_operations({
+  operation: "insert",
+  tableName: "usuarios",
+  data: {
+    nombre: "Juan Pérez",
+    email: "juan@ejemplo.com",
+    edad: 30,
+  },
+  onConflict: "ON CONFLICT (email) DO NOTHING",
+});
 
-### 3. Insertar Datos
+// Actualizar datos
+await crud_operations({
+  operation: "update",
+  tableName: "usuarios",
+  data: {
+    nombre: "Juan Carlos Pérez",
+    edad: 31,
+  },
+  where: "email = $1",
+  whereParams: ["juan@ejemplo.com"],
+});
 
-```
-Inserta un nuevo usuario:
-- nombre: "Ana García"
-- email: "ana@ejemplo.com"
-- activo: true
-```
-
-### 4. Consultar Datos
-
-```
-Ejecuta esta consulta para mostrar usuarios activos:
-SELECT id, nombre, email, fecha_creacion
-FROM usuarios
-WHERE activo = $1
-ORDER BY fecha_creacion DESC
-Parámetros: [true]
-```
-
-### 5. Actualizar Datos
-
-```
-Actualiza el email del usuario con id 1:
-- Tabla: usuarios
-- Datos: {"email": "nuevo@ejemplo.com"}
-- Condición WHERE: id = $1
-- Parámetros WHERE: [1]
+// Eliminar datos
+await crud_operations({
+  operation: "delete",
+  tableName: "usuarios",
+  where: "edad < $1",
+  whereParams: [18],
+});
 ```
 
-## 🛡️ Características de Seguridad
+#### Información de Tablas
 
-### Consultas Parametrizadas
+```typescript
+// Listar todas las tablas
+await table_info({
+  action: "list",
+  schema: "public",
+});
 
-Todas las operaciones utilizan consultas parametrizadas para prevenir inyección SQL:
-
-```javascript
-// ✅ Seguro
-query("SELECT * FROM usuarios WHERE id = $1", [userId]);
-
-// ❌ Inseguro (no se permite)
-query(`SELECT * FROM usuarios WHERE id = ${userId}`);
+// Describir estructura de una tabla específica
+await table_info({
+  action: "describe",
+  tableName: "usuarios",
+  schema: "public",
+});
 ```
 
-### Sanitización de Identificadores
+#### Gestión de Tablas
 
-Los nombres de tablas y columnas son validados para contener solo caracteres seguros:
+```typescript
+// Crear una nueva tabla
+await create_table({
+  tableName: "productos",
+  columns: [
+    { name: "id", type: "SERIAL", constraints: "PRIMARY KEY" },
+    { name: "nombre", type: "VARCHAR(255)", constraints: "NOT NULL" },
+    {
+      name: "precio",
+      type: "DECIMAL(10,2)",
+      constraints: "CHECK (precio > 0)",
+    },
+    {
+      name: "categoria_id",
+      type: "INTEGER",
+      constraints: "REFERENCES categorias(id)",
+    },
+  ],
+  options: "WITH (OIDS=FALSE)",
+});
 
-- Letras (a-z, A-Z)
-- Números (0-9)
-- Guiones bajos (\_)
-- Puntos (.) para esquemas
-
-### Pooling de Conexiones
-
-- Máximo 10 conexiones concurrentes
-- Timeout de inactividad: 30 segundos
-- Timeout de conexión: 2 segundos
-
-## 🔍 Solución de Problemas
-
-### Error de Conexión
-
-```
-Failed to connect to database: connection refused
-```
-
-**Solución:**
-
-- Verifica que PostgreSQL esté ejecutándose
-- Confirma host, puerto y credenciales
-- Revisa configuración de firewall/red
-
-### Error de Permisos
-
-```
-permission denied for table usuarios
+// Eliminar tabla con CASCADE
+await drop_table({
+  tableName: "productos",
+  cascade: true,
+});
 ```
 
-**Solución:**
+#### Consultas Personalizadas
 
-```sql
-GRANT SELECT, INSERT, UPDATE, DELETE ON usuarios TO mi_usuario;
+```typescript
+// Consulta con parámetros
+await execute_query({
+  query: `
+    SELECT u.nombre, u.email, COUNT(p.id) as total_pedidos
+    FROM usuarios u
+    LEFT JOIN pedidos p ON u.id = p.usuario_id
+    WHERE u.fecha_registro >= $1
+    GROUP BY u.id, u.nombre, u.email
+    ORDER BY total_pedidos DESC
+    LIMIT $2
+  `,
+  params: ["2024-01-01", 10],
+});
 ```
 
-### Error de Identificador Inválido
+## Optimizaciones Realizadas
 
-```
-Invalid identifier: mi-tabla
-```
+### Antes (10 tools) → Después (8 tools)
 
-**Solución:** Usa solo letras, números y guiones bajos: `mi_tabla`
+#### ✅ Herramientas Combinadas:
 
-## 🎯 Casos de Uso Avanzados
+- `insert_data` + `update_data` + `delete_data` → **`crud_operations`**
+- `list_tables` + `describe_table` → **`table_info`**
 
-### Análisis de Datos
+#### ✅ Herramientas Mantenidas:
 
-```
-Ejecuta esta consulta de análisis:
-SELECT
-  DATE(fecha_creacion) as fecha,
-  COUNT(*) as nuevos_usuarios,
-  COUNT(CASE WHEN activo THEN 1 END) as activos
-FROM usuarios
-WHERE fecha_creacion >= $1
-GROUP BY DATE(fecha_creacion)
-ORDER BY fecha DESC
-Parámetros: ['2024-01-01']
-```
+- `connect_database`, `disconnect_database`
+- `execute_query`, `create_table`, `drop_table`
+- `get_database_info`
 
-### Gestión de Índices
+#### ✅ Beneficios:
 
-```
-CREATE INDEX idx_usuarios_email ON usuarios(email);
-CREATE INDEX idx_usuarios_fecha ON usuarios(fecha_creacion);
-```
+- **Interfaz más simple**: 20% menos herramientas
+- **CRUD unificado**: Una sola herramienta para todas las operaciones de datos
+- **Información centralizada**: Gestión unificada de información de tablas
+- **Funcionalidad completa**: Sin pérdida de características
+- **Mejor experiencia**: Menos decisiones para el usuario
 
-### Respaldos y Restauración
+## Funcionalidades Avanzadas
 
-```sql
--- Para hacer backup (ejecutar desde terminal)
-pg_dump mi_base_datos > backup.sql
+### Parámetros Seguros
 
--- Para restaurar
-psql mi_base_datos < backup.sql
+```typescript
+// Siempre usa parámetros para prevenir inyección SQL
+await crud_operations({
+  operation: "update",
+  tableName: "productos",
+  data: { precio: 99.99 },
+  where: "categoria = $1 AND stock > $2",
+  whereParams: ["electronics", 0],
+});
 ```
 
-## 📋 Requisitos del Sistema
+### Transacciones
 
-- **Node.js**: ≥ 18.0.0
-- **PostgreSQL**: ≥ 12.0
-- **Sistema Operativo**: Windows, macOS, Linux
+```typescript
+// Usar transacciones para operaciones complejas
+await execute_query({
+  query: `
+    BEGIN;
+    INSERT INTO productos (nombre, precio) VALUES ($1, $2);
+    UPDATE categorias SET total_productos = total_productos + 1 WHERE id = $3;
+    COMMIT;
+  `,
+  params: ["Nuevo Producto", 29.99, 1],
+});
+```
 
-## 🤝 Contribuir
+### Consultas Complejas
 
-Para contribuir al proyecto:
+```typescript
+// JOIN con múltiples tablas
+await execute_query({
+  query: `
+    WITH ventas_mensuales AS (
+      SELECT 
+        EXTRACT(MONTH FROM fecha) as mes,
+        SUM(total) as total_ventas
+      FROM pedidos 
+      WHERE fecha >= $1
+      GROUP BY EXTRACT(MONTH FROM fecha)
+    )
+    SELECT mes, total_ventas,
+           LAG(total_ventas) OVER (ORDER BY mes) as mes_anterior
+    FROM ventas_mensuales
+    ORDER BY mes
+  `,
+  params: ["2024-01-01"],
+});
+```
 
-1. Fork el repositorio
-2. Crea una rama para tu feature (`git checkout -b feature/nueva-funcionalidad`)
-3. Commit tus cambios (`git commit -am 'Agregar nueva funcionalidad'`)
-4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
-5. Crea un Pull Request
+## Patrones de Uso Recomendados
 
-## 📄 Licencia
+### 1. Desarrollo de Aplicaciones
 
-Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+```typescript
+// 1. Conectar
+await connect_database({...});
 
-## 🔗 Enlaces Útiles
+// 2. Crear esquema
+await create_table({...});
 
-- [Documentación de PostgreSQL](https://www.postgresql.org/docs/)
-- [Model Context Protocol](https://modelcontextprotocol.io/)
-- [Claude Desktop](https://claude.ai/desktop)
-- [Node.js pg library](https://node-postgres.com/)
+// 3. Insertar datos de prueba
+await crud_operations({
+  operation: "insert",
+  tableName: "usuarios",
+  data: {...}
+});
 
-## 📞 Soporte
+// 4. Consultar y validar
+await execute_query({...});
+```
 
-Si encuentras algún problema o tienes preguntas:
+### 2. Análisis de Datos
 
-1. Revisa la sección de solución de problemas
-2. Busca en los issues existentes
-3. Crea un nuevo issue con:
-   - Descripción del problema
-   - Pasos para reproducir
-   - Versiones de software
-   - Logs de error
+```typescript
+// 1. Conectar a base de datos de producción
+await connect_database({...});
+
+// 2. Obtener información del esquema
+await table_info({ action: "list" });
+
+// 3. Analizar datos
+await execute_query({
+  query: "SELECT * FROM metrics WHERE date >= $1",
+  params: ["2024-01-01"]
+});
+```
+
+### 3. Migración de Datos
+
+```typescript
+// 1. Conectar
+await connect_database({...});
+
+// 2. Crear tabla destino
+await create_table({...});
+
+// 3. Migrar datos por lotes
+await crud_operations({
+  operation: "insert",
+  tableName: "nueva_tabla",
+  data: {...}
+});
+```
+
+## Requisitos
+
+- Node.js 14+
+- PostgreSQL 10+
+- Permisos de conexión a la base de datos
+
+## Error Handling
+
+El servidor maneja errores comunes como:
+
+- Fallos de conexión a la base de datos
+- Errores de sintaxis SQL
+- Violaciones de restricciones
+- Tablas o columnas no encontradas
+- Problemas de permisos
+
+## Seguridad
+
+- **Consultas parametrizadas**: Prevención de inyección SQL
+- **Validación de identificadores**: Nombres de tabla y columna seguros
+- **Gestión de conexiones**: Pool de conexiones con timeouts
+- **SSL opcional**: Soporte para conexiones seguras
+
+## Desarrollo
+
+```bash
+# Instalar dependencias
+npm install
+
+# Ejecutar el servidor
+node server.js
+
+# El servidor se ejecuta en modo stdio para MCP
+```
+
+## Licencia
+
+MIT
